@@ -8,13 +8,13 @@
       </a>
       <nav class="nav-menu">
         <div 
-          v-for="(group, index) in toolGroups" 
-          :key="index"
+          v-for="group in toolGroupsArray"
+          :key="group.name"
           class="nav-item"
-          :class="{ active: currentGroup === index }"
-          @click="scrollToGroup(index)"
+          :class="{ active: currentGroup === group.name }"
+          @click="scrollToGroup(group.name)"
         >
-          {{ index }}
+          {{ group.name }}
         </div>
       </nav>
     </div>
@@ -36,15 +36,15 @@
       <!-- 工具卡片网格 -->
       <div class="tools-container">
         <div 
-          v-for="(group, groupName) in toolGroups" 
-          :key="groupName"
+          v-for="group in toolGroupsArray"
+          :key="group.name"
           class="tool-group"
-          :ref="el => { if (el) groupRefs[groupName] = el }"
+          :ref="el => setGroupRef(el as RefElement, group.name)"
         >
-          <h2 class="group-title">{{ groupName }}</h2>
+          <h2 class="group-title">{{ group.name }}</h2>
           <div class="tool-grid">
             <a 
-              v-for="tool in group" 
+              v-for="tool in group.tools" 
               :key="tool.name"
               :href="tool.link"
               target="_blank"
@@ -73,15 +73,47 @@
 </template>
 
 <script setup lang="ts">
-import { ref, onMounted, reactive } from 'vue'
+import { ref, onMounted, reactive, computed } from 'vue'
 import { toolGroups } from '../data/toolGroups'
 import SearchBar from '../components/SearchBar.vue'
 
 const contentRef = ref<HTMLElement | null>(null)
 const currentGroup = ref('')
 const groupRefs = reactive<{ [key: string]: HTMLElement }>({})
-const currentTime = ref('')
-const currentDate = ref('')
+
+// 将工具组数据转换为数组格式
+const toolGroupsArray = computed(() => {
+  return Object.entries(toolGroups).map(([name, tools]) => ({
+    name,
+    tools
+  }))
+})
+
+const scrollToGroup = (groupName: string) => {
+  const element = groupRefs[groupName]
+  if (element) {
+    element.scrollIntoView({ behavior: 'smooth' })
+  }
+}
+
+// 修复 ref 回调函数参数类型
+type RefElement = HTMLElement | null
+
+const setGroupRef = (el: RefElement, groupName: string) => {
+  if (el) groupRefs[groupName] = el
+}
+
+const updateCurrentGroup = () => {
+  if (!contentRef.value) return
+  
+  const scrollPosition = contentRef.value.scrollTop
+  for (const [groupName, element] of Object.entries(groupRefs)) {
+    const { top } = element.getBoundingClientRect()
+    if (top <= 100) {
+      currentGroup.value = groupName
+    }
+  }
+}
 
 const getFaviconUrl = (url: string) => {
   try {
@@ -105,24 +137,8 @@ const handleImageError = (e: Event) => {
   }
 }
 
-const scrollToGroup = (groupName: string) => {
-  const element = groupRefs[groupName]
-  if (element) {
-    element.scrollIntoView({ behavior: 'smooth' })
-  }
-}
-
-const updateCurrentGroup = () => {
-  if (!contentRef.value) return
-  
-  const scrollPosition = contentRef.value.scrollTop
-  for (const [groupName, element] of Object.entries(groupRefs)) {
-    const { top } = element.getBoundingClientRect()
-    if (top <= 100) {
-      currentGroup.value = groupName
-    }
-  }
-}
+const currentTime = ref('')
+const currentDate = ref('')
 
 const updateDateTime = () => {
   const now = new Date()
